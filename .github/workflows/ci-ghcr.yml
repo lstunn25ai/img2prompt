@@ -1,0 +1,68 @@
+name: CI and GHCR publish
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: python -m pip install --no-cache-dir -r requirements.txt
+      - name: Run unit tests
+        run: python -B -m unittest discover -v -s tests
+      - name: Validate server-source Compose
+        run: docker compose --env-file .env.example -f docker-compose.yml config
+      - name: Validate GitHub-image Compose
+        run: docker compose --env-file .env.example -f gh_docker-compose.yml config
+
+  publish:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/metadata-action@v5
+        id: metadata
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=main
+            type=raw,value=sha-${{ github.sha }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}
+
+  notify-portainer:
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Portainer only when the webhook secret is configured
+        env:
+          PORTAINER_WEBHOOK_URL: ${{ secrets.PORTAINER_WEBHOOK_URL }}
+        run: |
+          if [ -z "$PORTAINER_WEBHOOK_URL" ]; then
+            echo "PORTAINER_WEBHOOK_URL is not configured; skipping redeploy."
+            exit 0
+          fi
+          curl --fail --silent --show-error --request POST "$PORTAINER_WEBHOOK_URL"

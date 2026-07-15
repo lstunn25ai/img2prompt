@@ -1,0 +1,30 @@
+services:
+  vision_bot:
+    image: ${BOT_IMAGE}:${IMAGE_TAG}
+    container_name: ${CONTAINER_NAME}
+    restart: unless-stopped
+    working_dir: /app
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - PAID_KEY=${PAID_KEY}
+      - ADMIN_ID=${ADMIN_ID}
+      - HTTP_PROXY=${HTTP_PROXY:-}
+      - HTTPS_PROXY=${HTTPS_PROXY:-}
+      - SAVE_PATH=${SAVE_PATH}
+      - ATTACHMENTS_PATH=${ATTACHMENTS_PATH}
+      - CONTAINER_NAME=${CONTAINER_NAME}
+    volumes:
+      - ${SAVE_PATH}:${SAVE_PATH}
+      - ${ATTACHMENTS_PATH}:${ATTACHMENTS_PATH}
+      - ${DOCKER_SOCKET_PATH}:/var/run/docker.sock
+    networks:
+      - application_network
+      - proxy_network
+
+networks:
+  application_network:
+    name: ${APPLICATION_NETWORK}
+    external: true
+  proxy_network:
+    name: ${PROXY_NETWORK}
+    external: true
