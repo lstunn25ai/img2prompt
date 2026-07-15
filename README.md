@@ -1,30 +1,30 @@
-﻿# img2prompt
+# img2prompt
 
 ![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?style=for-the-badge&logo=python&logoColor=white) ![aiogram](https://img.shields.io/badge/aiogram-Telegram-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 
-Telegram-Р±РѕС‚ СЂР°СЃРїРѕР·РЅР°С‘С‚ С‚РµРєСЃС‚ РЅР° С„РѕС‚Рѕ Рё СЃРѕС…СЂР°РЅСЏРµС‚ Markdown-Р·Р°РјРµС‚РєРё СЃ JPEG-РїСЂРµРІСЊСЋ РґР»СЏ Obsidian. Р’ Telegram РѕРЅ РѕС‚РІРµС‡Р°РµС‚ С‚РѕР»СЊРєРѕ С‚РµРєСЃС‚РѕРј: Р±РµР· СЌС…Рѕ, РєРѕРїРёСЂРѕРІР°РЅРёСЏ Рё РїРµСЂРµСЃС‹Р»РєРё РјРµРґРёР°.
+Telegram-бот распознаёт текст на фото и сохраняет Markdown-заметки с JPEG-превью для Obsidian. В Telegram он отвечает только текстом: без эхо, копирования и пересылки медиа.
 
-## РЎС‚СЂСѓРєС‚СѓСЂР°
+## Структура
 
 ```text
 .
-в”њв”Ђв”Ђ Dockerfile                         # РћР±СЂР°Р· Р±РѕС‚Р° РґР»СЏ GitHub/GHCR-РїРѕСЃС‚Р°РІРєРё
-в”њв”Ђв”Ђ docker-compose.yml                 # РЎРµСЂРІРµСЂРЅС‹Р№ Р·Р°РїСѓСЃРє РёР· APP_PATH
-в”њв”Ђв”Ђ gh_docker-compose.yml              # Р—Р°РїСѓСЃРє РіРѕС‚РѕРІРѕРіРѕ РѕР±СЂР°Р·Р° РёР· GHCR
-в”њв”Ђв”Ђ .github/workflows/ci-ghcr.yml      # PR-РїСЂРѕРІРµСЂРєРё Рё РїСѓР±Р»РёРєР°С†РёСЏ РѕР±СЂР°Р·Р° main
-в”њв”Ђв”Ђ bot.py                             # РҐРµРЅРґР»РµСЂС‹, OCR Рё СЃРѕС…СЂР°РЅРµРЅРёРµ Р·Р°РјРµС‚РѕРє
-в”њв”Ђв”Ђ preview_assets.py                  # JPEG-РїСЂРµРІСЊСЋ Рё MD5-РґРµРґСѓРїР»РёРєР°С†РёСЏ
-в”њв”Ђв”Ђ requirements.txt
-в””в”Ђв”Ђ tests/
+├── Dockerfile                         # Образ бота для GitHub/GHCR-поставки
+├── docker-compose.yml                 # Серверный запуск из APP_PATH
+├── gh_docker-compose.yml              # Запуск готового образа из GHCR
+├── .github/workflows/ci-ghcr.yml      # PR-проверки и публикация образа main
+├── bot.py                             # Хендлеры, OCR и сохранение заметок
+├── preview_assets.py                  # JPEG-превью и MD5-дедупликация
+├── requirements.txt
+└── tests/
 ```
 
-## Р’РѕР·РјРѕР¶РЅРѕСЃС‚Рё
+## Возможности
 
-- OCR С„РѕС‚Рѕ, РґРѕРєСѓРјРµРЅС‚РѕРІ-РёР·РѕР±СЂР°Р¶РµРЅРёР№ Рё Р°Р»СЊР±РѕРјРѕРІ С‡РµСЂРµР· OpenRouter.
-- Obsidian Markdown, EXIF-РєРѕСЂСЂРµРєС†РёСЏ, РїСЂРѕР·СЂР°С‡РЅС‹Рµ PNG Рё JPEG-РїСЂРµРІСЊСЋ РґРѕ 300 px.
-- РћС‚РІРµС‚С‹ Telegram С‚РѕР»СЊРєРѕ С‚РµРєСЃС‚РѕРј; СЂРµРіСЂРµСЃСЃРёРѕРЅРЅС‹Р№ С‚РµСЃС‚ Р·Р°РїСЂРµС‰Р°РµС‚ РёСЃС…РѕРґСЏС‰РёРµ РјРµРґРёР°, copy Рё forward.
+- OCR фото, документов-изображений и альбомов через OpenRouter.
+- Obsidian Markdown, EXIF-коррекция, прозрачные PNG и JPEG-превью до 300 px.
+- Ответы Telegram только текстом; регрессионный тест запрещает исходящие медиа, copy и forward.
 
-## РђСЂС…РёС‚РµРєС‚СѓСЂР°
+## Архитектура
 
 ```mermaid
 flowchart LR
@@ -36,49 +36,49 @@ flowchart LR
     A --> V
 ```
 
-## Р”РІР° РІР°СЂРёР°РЅС‚Р° Docker Compose
+## Два варианта Docker Compose
 
-### `docker-compose.yml` вЂ” Р·Р°РїСѓСЃРє РёР· СЃРµСЂРІРµСЂРЅРѕР№ РїР°РїРєРё
+### `docker-compose.yml` — запуск из серверной папки
 
-Р­С‚РѕС‚ РІР°СЂРёР°РЅС‚ СЃРѕС…СЂР°РЅСЏРµС‚ РёСЃС…РѕРґРЅСѓСЋ СЃС…РµРјСѓ: `${APP_PATH}` РјРѕРЅС‚РёСЂСѓРµС‚СЃСЏ РІ `/app`, Р° РєРѕРЅС‚РµР№РЅРµСЂ Р·Р°РїСѓСЃРєР°РµС‚ РєРѕРґ РёР· РїР°РїРєРё РїСЂРѕРµРєС‚Р° РЅР° СЃРµСЂРІРµСЂРµ. РСЃРїРѕР»СЊР·СѓР№С‚Рµ РµРіРѕ РґР»СЏ СЃСѓС‰РµСЃС‚РІСѓСЋС‰РµРіРѕ Р»РѕРєР°Р»СЊРЅРѕРіРѕ Stack РёР»Рё СЂСѓС‡РЅРѕР№ СЂР°Р·СЂР°Р±РѕС‚РєРё РЅР° СЃРµСЂРІРµСЂРµ.
+Этот вариант сохраняет исходную схему: `${APP_PATH}` монтируется в `/app`, а контейнер запускает код из папки проекта на сервере. Используйте его для существующего локального Stack или ручной разработки на сервере.
 
-РџРѕСЃР»Рµ РёР·РјРµРЅРµРЅРёСЏ РєРѕРґР° РІ `APP_PATH` РЅСѓР¶РµРЅ restart/redeploy РєРѕРЅС‚РµР№РЅРµСЂР°. Push РІ GitHub СЃР°Рј РїРѕ СЃРµР±Рµ СЌС‚РѕС‚ РєРѕРґ РЅРµ Р·Р°РјРµРЅСЏРµС‚.
+После изменения кода в `APP_PATH` нужен restart/redeploy контейнера. Push в GitHub сам по себе этот код не заменяет.
 
-### `gh_docker-compose.yml` вЂ” Р·Р°РїСѓСЃРє РєРѕРґР° РёР· GitHub
+### `gh_docker-compose.yml` — запуск кода из GitHub
 
-Р­С‚РѕС‚ РІР°СЂРёР°РЅС‚ **РЅРµ РјРѕРЅС‚РёСЂСѓРµС‚ `${APP_PATH}`**. GitHub Actions СЃРѕР±РёСЂР°РµС‚ `Dockerfile`, РїСѓР±Р»РёРєСѓРµС‚ РѕР±СЂР°Р· РІ GHCR, Р° Portainer Р·Р°РїСѓСЃРєР°РµС‚ `${BOT_IMAGE}:${IMAGE_TAG}`. РќР° СЃРµСЂРІРµСЂРµ РѕСЃС‚Р°СЋС‚СЃСЏ С‚РѕР»СЊРєРѕ РїРѕСЃС‚РѕСЏРЅРЅС‹Рµ Obsidian-РґР°РЅРЅС‹Рµ Рё Docker socket.
+Этот вариант **не монтирует `${APP_PATH}`**. GitHub Actions собирает `Dockerfile`, публикует образ в GHCR, а Portainer запускает `${BOT_IMAGE}:${IMAGE_TAG}`. На сервере остаются только постоянные Obsidian-данные и Docker socket.
 
-Р”Р»СЏ GitHub-Stack СѓРєР°Р¶РёС‚Рµ Compose path `gh_docker-compose.yml`, reference `refs/heads/main` Рё РїРµСЂРµРјРµРЅРЅС‹Рµ РёР· `.env.example`. Р”Р»СЏ РїСѓР±Р»РёС‡РЅРѕРіРѕ GHCR-РѕР±СЂР°Р·Р° authentication РЅРµ РЅСѓР¶РЅР°; РґР»СЏ РїСЂРёРІР°С‚РЅРѕРіРѕ РЅР°СЃС‚СЂРѕР№С‚Рµ registry credentials РІ Portainer.
+Для GitHub-Stack укажите Compose path `gh_docker-compose.yml`, reference `refs/heads/main` и переменные из `.env.example`. Для публичного GHCR-образа authentication не нужна; для приватного настройте registry credentials в Portainer.
 
-## GitOps: merge РІ main в†’ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРѕРµ РѕР±РЅРѕРІР»РµРЅРёРµ
+## GitOps: merge в main → автоматическое обновление
 
-1. РЎРѕР·РґР°Р№С‚Рµ РІРµС‚РєСѓ `agent/<Р·Р°РґР°С‡Р°>`, РІРЅРµСЃРёС‚Рµ РёР·РјРµРЅРµРЅРёСЏ Рё РѕС‚РєСЂРѕР№С‚Рµ draft PR.
-2. Workflow Р·Р°РїСѓСЃРєР°РµС‚ С‚РµСЃС‚С‹ РґР»СЏ PR, РЅРѕ РЅРµ РїСѓР±Р»РёРєСѓРµС‚ Рё РЅРµ СЂР°Р·РІРѕСЂР°С‡РёРІР°РµС‚ РІРµС‚РєСѓ.
-3. РџРѕСЃР»Рµ merge РІ `main` workflow РїРѕРІС‚РѕСЂСЏРµС‚ РїСЂРѕРІРµСЂРєРё, РїСѓР±Р»РёРєСѓРµС‚ С‚РµРіРё `main` Рё `sha-<commit>` РІ GHCR.
-4. Workflow РІС‹Р·С‹РІР°РµС‚ Portainer webhook С‚РѕР»СЊРєРѕ РµСЃР»Рё РІ GitHub Secrets Р·Р°РґР°РЅ `PORTAINER_WEBHOOK_URL`.
-5. Portainer РїРѕРґС‚СЏРіРёРІР°РµС‚ РЅРѕРІС‹Р№ РѕР±СЂР°Р· Рё РїРµСЂРµР·Р°РїСѓСЃРєР°РµС‚ РµРґРёРЅСЃС‚РІРµРЅРЅС‹Р№ bot-РєРѕРЅС‚РµР№РЅРµСЂ.
+1. Создайте ветку `agent/<задача>`, внесите изменения и откройте draft PR.
+2. Workflow запускает тесты для PR, но не публикует и не разворачивает ветку.
+3. После merge в `main` workflow повторяет проверки, публикует теги `main` и `sha-<commit>` в GHCR.
+4. Workflow вызывает Portainer webhook только если в GitHub Secrets задан `PORTAINER_WEBHOOK_URL`.
+5. Portainer подтягивает новый образ и перезапускает единственный bot-контейнер.
 
-Р’ Portainer РґР»СЏ GitHub Stack РІРєР»СЋС‡РёС‚Рµ GitOps updates в†’ **Webhook**, Р·Р°С‚РµРј **Re-pull image** Рё **Force redeployment**. Р”РѕР±Р°РІСЊС‚Рµ РІС‹РґР°РЅРЅС‹Р№ webhook URL РІ GitHub Actions Secret `PORTAINER_WEBHOOK_URL`; РЅРµ РєРѕРјРјРёС‚СЊС‚Рµ РµРіРѕ РІ СЂРµРїРѕР·РёС‚РѕСЂРёР№.
+В Portainer для GitHub Stack включите GitOps updates → **Webhook**, затем **Re-pull image** и **Force redeployment**. Добавьте выданный webhook URL в GitHub Actions Secret `PORTAINER_WEBHOOK_URL`; не коммитьте его в репозиторий.
 
-Р”Р»СЏ РїРµСЂРІРѕРіРѕ РїРµСЂРµС…РѕРґР° СЃРЅР°С‡Р°Р»Р° РґРѕР¶РґРёС‚РµСЃСЊ СѓСЃРїРµС€РЅРѕР№ РїСѓР±Р»РёРєР°С†РёРё GHCR-РѕР±СЂР°Р·Р°, Р·Р°С‚РµРј РІСЂСѓС‡РЅСѓСЋ СЂР°Р·РІРµСЂРЅРёС‚Рµ GitHub Stack. РџРѕСЃР»Рµ РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ СЂР°Р±РѕС‚С‹ РІРєР»СЋС‡Р°Р№С‚Рµ webhook. РџРµСЂРµРґ Р·Р°РјРµРЅРѕР№ РѕСЃС‚Р°РЅРѕРІРёС‚Рµ СЃС‚Р°СЂС‹Р№ Stack: РґРІР° СЌРєР·РµРјРїР»СЏСЂР° СЃ РѕРґРЅРёРј `BOT_TOKEN` РєРѕРЅС„Р»РёРєС‚СѓСЋС‚ РїСЂРё polling, Р° РѕРґРёРЅР°РєРѕРІС‹Р№ `CONTAINER_NAME` РєРѕРЅС„Р»РёРєС‚СѓРµС‚ РІ Docker.
+Для первого перехода сначала дождитесь успешной публикации GHCR-образа, затем вручную разверните GitHub Stack. После подтверждения работы включайте webhook. Перед заменой остановите старый Stack: два экземпляра с одним `BOT_TOKEN` конфликтуют при polling, а одинаковый `CONTAINER_NAME` конфликтует в Docker.
 
-РћС‚РєР°С‚: РІ Portainer РІСЂРµРјРµРЅРЅРѕ СѓСЃС‚Р°РЅРѕРІРёС‚Рµ `IMAGE_TAG=sha-<РїСЂРµРґС‹РґСѓС‰РёР№-commit>` Рё СЃРґРµР»Р°Р№С‚Рµ redeploy. SHA-С‚РµРіРё РѕСЃС‚Р°СЋС‚СЃСЏ РїСЂРёРІСЏР·Р°РЅРЅС‹РјРё Рє РєРѕРЅРєСЂРµС‚РЅС‹Рј РїСЂРѕРІРµСЂРµРЅРЅС‹Рј commit.
+Откат: в Portainer временно установите `IMAGE_TAG=sha-<предыдущий-commit>` и сделайте redeploy. SHA-теги остаются привязанными к конкретным проверенным commit.
 
-## РљРѕРЅС„РёРіСѓСЂР°С†РёСЏ
+## Конфигурация
 
-РЎРєРѕРїРёСЂСѓР№С‚Рµ `.env.example` РІ РїСЂРёРІР°С‚РЅС‹Р№ `.env` РґР»СЏ Р»РѕРєР°Р»СЊРЅРѕРіРѕ Р·Р°РїСѓСЃРєР° РёР»Рё РїРµСЂРµРЅРµСЃРёС‚Рµ Р·РЅР°С‡РµРЅРёСЏ РІ Portainer Environment Variables. РќРёРєРѕРіРґР° РЅРµ РґРѕР±Р°РІР»СЏР№С‚Рµ `.env` РІ Git.
+Скопируйте `.env.example` в приватный `.env` для локального запуска или перенесите значения в Portainer Environment Variables. Никогда не добавляйте `.env` в Git.
 
-| РџРµСЂРµРјРµРЅРЅР°СЏ | РќР°Р·РЅР°С‡РµРЅРёРµ |
+| Переменная | Назначение |
 | --- | --- |
-| `BOT_TOKEN`, `PAID_KEY`, `ADMIN_ID` | Р”РѕСЃС‚СѓРї Telegram, OpenRouter Рё Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂР° |
-| `APP_PATH` | РўРѕР»СЊРєРѕ РґР»СЏ `docker-compose.yml` СЃ СЃРµСЂРІРµСЂРЅС‹Рј РёСЃС…РѕРґРЅС‹Рј РєРѕРґРѕРј |
-| `BOT_IMAGE`, `IMAGE_TAG` | РўРѕР»СЊРєРѕ РґР»СЏ `gh_docker-compose.yml` Рё GHCR |
-| `SAVE_PATH`, `ATTACHMENTS_PATH` | РџРѕСЃС‚РѕСЏРЅРЅС‹Рµ РґР°РЅРЅС‹Рµ Obsidian |
-| `HTTP_PROXY`, `HTTPS_PROXY` | РќРµРѕР±СЏР·Р°С‚РµР»СЊРЅС‹Р№ proxy |
-| `CONTAINER_NAME`, `DOCKER_SOCKET_PATH` | РљРѕРЅС‚РµР№РЅРµСЂ Рё Docker socket |
-| `APPLICATION_NETWORK`, `PROXY_NETWORK` | РЎСѓС‰РµСЃС‚РІСѓСЋС‰РёРµ РІРЅРµС€РЅРёРµ Docker networks |
+| `BOT_TOKEN`, `PAID_KEY`, `ADMIN_ID` | Доступ Telegram, OpenRouter и администратора |
+| `APP_PATH` | Только для `docker-compose.yml` с серверным исходным кодом |
+| `BOT_IMAGE`, `IMAGE_TAG` | Только для `gh_docker-compose.yml` и GHCR |
+| `SAVE_PATH`, `ATTACHMENTS_PATH` | Постоянные данные Obsidian |
+| `HTTP_PROXY`, `HTTPS_PROXY` | Необязательный proxy |
+| `CONTAINER_NAME`, `DOCKER_SOCKET_PATH` | Контейнер и Docker socket |
+| `APPLICATION_NETWORK`, `PROXY_NETWORK` | Существующие внешние Docker networks |
 
-## РџСЂРѕРІРµСЂРєР°
+## Проверка
 
 ```bash
 python -B -m unittest discover -v -s tests
@@ -86,12 +86,12 @@ docker compose --env-file .env.example -f docker-compose.yml config
 docker compose --env-file .env.example -f gh_docker-compose.yml config
 ```
 
-![РџСЂРµРІСЊСЋ Р·Р°РјРµС‚РєРё Obsidian](assets/readme-hero.png)
+![Превью заметки Obsidian](assets/readme-hero.png)
 
 <details>
 <summary>Previous README versions</summary>
 
-РџСѓР±Р»РёС‡РЅС‹С… РїСЂРµРґС‹РґСѓС‰РёС… РІРµСЂСЃРёР№ РїРѕРєР° РЅРµС‚.
+Публичных предыдущих версий пока нет.
 
 </details>
 
@@ -99,4 +99,4 @@ docker compose --env-file .env.example -f gh_docker-compose.yml config
 
 ## Ручное переключение шлюза
 
-Администратор может нажать 🔄 Переключить шлюз. Бот проверяет Telegram и OpenRouter через кандидатный шлюз, затем переключает оба клиента. Укажите PRIMARY_PROXY_URL и RESERVE_PROXY_URL только в Portainer или локальном .env; адреса и учётные данные не публикуются.
+Администратор может нажать 🔄 Переключить шлюз. Бот проверяет Telegram и OpenRouter через следующий шлюз, затем переключает оба клиента. Задайте PRIMARY_PROXY_URL и RESERVE_PROXY_URL только в Portainer или локальном игнорируемом .env; адреса и учётные данные не публикуются.
