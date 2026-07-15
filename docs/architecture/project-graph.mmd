@@ -1,0 +1,10 @@
+flowchart LR
+    user[Telegram user] --> bot[aiogram bot]
+    bot --> download[Temporary image download]
+    download --> ocr[OpenRouter multimodal OCR]
+    ocr --> note[Obsidian Markdown note]
+    ocr --> preview[Reduced JPEG preview]
+    preview --> attachments[(Obsidian attachments)]
+    attachments --> note
+    note --> vault[(Obsidian Vault)]
+    bot --> status[Text-only Telegram status]

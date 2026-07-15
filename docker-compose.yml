@@ -1,0 +1,33 @@
+services:
+  vision_bot:
+    image: python:3.11-slim
+    container_name: ${CONTAINER_NAME}
+    restart: unless-stopped
+    working_dir: /app
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - PAID_KEY=${PAID_KEY}
+      - ADMIN_ID=${ADMIN_ID}
+      - APP_PATH=${APP_PATH}
+      - HTTP_PROXY=${HTTP_PROXY:-}
+      - HTTPS_PROXY=${HTTPS_PROXY:-}
+      - SAVE_PATH=${SAVE_PATH}
+      - ATTACHMENTS_PATH=${ATTACHMENTS_PATH}
+      - CONTAINER_NAME=${CONTAINER_NAME}
+    volumes:
+      - ${APP_PATH}:/app
+      - ${SAVE_PATH}:${SAVE_PATH}
+      - ${ATTACHMENTS_PATH}:${ATTACHMENTS_PATH}
+      - ${DOCKER_SOCKET_PATH}:/var/run/docker.sock
+    command: sh -c "pip install --no-cache-dir -r requirements.txt && python -u bot.py"
+    networks:
+      - application_network
+      - proxy_network
+
+networks:
+  application_network:
+    name: ${APPLICATION_NETWORK}
+    external: true
+  proxy_network:
+    name: ${PROXY_NETWORK}
+    external: true

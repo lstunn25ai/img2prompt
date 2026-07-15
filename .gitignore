@@ -1,0 +1,57 @@
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+credentials*.json
+*credential*.json
+secrets*.json
+service-account*.json
+
+# Local deployment overrides
+docker-compose.override.yml
+compose.override.yml
+
+# Python runtime and tests
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Runtime files
+*.log
+*.pid
+*.session
+*.sqlite3
+
+# Editors and operating systems
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Private project instructions and agent workspaces
+AGENTS.md
+.codex/
+.claude/
+.cursor/
+.aider/
+ruflo/
+graphify-out/
+__patch_stage/
