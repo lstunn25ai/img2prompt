@@ -1,10 +1,21 @@
 flowchart LR
-    user[Telegram user] --> bot[aiogram bot]
-    bot --> download[Temporary image download]
-    download --> ocr[OpenRouter multimodal OCR]
-    ocr --> note[Obsidian Markdown note]
-    ocr --> preview[Reduced JPEG preview]
+    user[Пользователь Telegram] --> telegram[Telegram Bot API]
+    telegram --> bot[img2prompt aiogram]
+
+    admin[Администратор] -->|Переключить шлюз| selector[Выбор активного шлюза]
+    bot --> selector
+    selector --> primary[Основной прокси]
+    selector --> reserve[Резервный прокси]
+    selector --> telegram
+    selector --> ocr[OpenRouter OCR]
+
+    bot --> incoming[Временная загрузка входного изображения]
+    incoming --> preview[JPEG-превью до 300 px]
+    ocr --> markdown[Markdown-заметка]
     preview --> attachments[(Obsidian attachments)]
-    attachments --> note
-    note --> vault[(Obsidian Vault)]
-    bot --> status[Text-only Telegram status]
+    markdown --> vault[(Obsidian Vault)]
+    attachments --> markdown
+
+    ci[GitHub Actions] --> ghcr[GHCR image]
+    ghcr --> portainer[Portainer Git Stack]
+    portainer --> bot
