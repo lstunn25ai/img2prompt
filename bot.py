@@ -19,6 +19,8 @@ from aiogram.client.session.aiohttp import AiohttpSession
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
 
+from proxy_routing import build_proxy_endpoints, load_proxy_index, next_proxy_index, save_proxy_index
+
 from preview_assets import (
     create_preview_asset,
     render_attachment_markdown,
