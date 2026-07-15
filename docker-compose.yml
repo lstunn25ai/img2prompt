@@ -1,4 +1,4 @@
-﻿services:
+services:
   vision_bot:
     image: python:3.11-slim
     container_name: ${CONTAINER_NAME}
@@ -9,7 +9,9 @@
       - PAID_KEY=${PAID_KEY}
       - ADMIN_ID=${ADMIN_ID}
       - APP_PATH=${APP_PATH}
-      - PRIMARY_PROXY_URL=${PRIMARY_PROXY_URL:-}`r`n      - RESERVE_PROXY_URL=${RESERVE_PROXY_URL:-}`r`n      - HTTP_PROXY=${HTTP_PROXY:-}
+      - PRIMARY_PROXY_URL=${PRIMARY_PROXY_URL:-}
+      - RESERVE_PROXY_URL=${RESERVE_PROXY_URL:-}
+      - HTTP_PROXY=${HTTP_PROXY:-}
       - HTTPS_PROXY=${HTTPS_PROXY:-}
       - SAVE_PATH=${SAVE_PATH}
       - ATTACHMENTS_PATH=${ATTACHMENTS_PATH}

@@ -2,79 +2,107 @@
 
 ![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?style=for-the-badge&logo=python&logoColor=white) ![aiogram](https://img.shields.io/badge/aiogram-Telegram-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 
-Telegram-бот распознаёт текст на фото и сохраняет Markdown-заметки с JPEG-превью для Obsidian. В Telegram он отвечает только текстом: без эхо, копирования и пересылки медиа.
-
-## Структура
-
-```text
-.
-├── Dockerfile                         # Образ бота для GitHub/GHCR-поставки
-├── docker-compose.yml                 # Серверный запуск из APP_PATH
-├── gh_docker-compose.yml              # Запуск готового образа из GHCR
-├── .github/workflows/ci-ghcr.yml      # PR-проверки и публикация образа main
-├── bot.py                             # Хендлеры, OCR и сохранение заметок
-├── preview_assets.py                  # JPEG-превью и MD5-дедупликация
-├── requirements.txt
-└── tests/
-```
+Личный Telegram-бот для OCR изображений через OpenRouter. Он сохраняет Obsidian-совместимые Markdown-заметки и компактные JPEG-превью, а в Telegram отвечает исключительно текстом: без эхо, copy, forward и исходящих медиафайлов.
 
 ## Возможности
 
 - OCR фото, документов-изображений и альбомов через OpenRouter.
-- Obsidian Markdown, EXIF-коррекция, прозрачные PNG и JPEG-превью до 300 px.
-- Ответы Telegram только текстом; регрессионный тест запрещает исходящие медиа, copy и forward.
+- Markdown-заметки для Obsidian, EXIF-коррекция, белый фон для прозрачных PNG и JPEG-превью шириной до 300 px.
+- Дедупликация физических вложений по MD5.
+- Сохранение порядка: превью и транскрипция каждого изображения идут рядом.
+- Регрессионный тест запрещает исходящие медиа, copy и forward.
 
 ## Архитектура
 
 ```mermaid
 flowchart LR
-    U[Telegram] --> B[aiogram bot]
-    B --> O[OpenRouter OCR]
-    O --> N[Obsidian Markdown]
-    O --> A[JPEG preview]
-    N --> V[(Obsidian Vault)]
-    A --> V
+    user[Пользователь Telegram] --> telegram[Telegram Bot API]
+    telegram --> bot[img2prompt / aiogram]
+    admin[Администратор] -->|Переключить шлюз| router[Выбор шлюза]
+    bot --> router
+    router --> primary[Основной прокси]
+    router --> reserve[Резервный прокси]
+    router --> telegram
+    router --> ocr[OpenRouter OCR]
+    bot --> incoming[Временная загрузка]
+    incoming --> preview[JPEG-превью до 300 px]
+    ocr --> note[Markdown-заметка]
+    preview --> attachments[(Obsidian attachments)]
+    attachments --> note
+    note --> vault[(Obsidian Vault)]
+    ci[GitHub Actions] --> ghcr[GHCR image]
+    ghcr --> portainer[Portainer Git Stack]
+    portainer --> bot
 ```
+
+Подробная схема без адресов и секретов: [docs/architecture/project-graph.mmd](docs/architecture/project-graph.mmd).
+
+## Структура
+
+```text
+.
+├── Dockerfile                         # Образ для GitHub/GHCR-поставки
+├── docker-compose.yml                 # Серверный запуск из APP_PATH
+├── gh_docker-compose.yml              # Запуск готового образа из GHCR
+├── .github/workflows/ci-ghcr.yml      # PR-проверки и публикация образа main
+├── bot.py                             # Хендлеры, OCR, Markdown и UI администратора
+├── preview_assets.py                  # JPEG-превью и MD5-дедупликация
+├── proxy_routing.py                   # Резервное проксирование
+├── docs/architecture/project-graph.mmd
+├── .env.example                       # Безопасный шаблон переменных
+└── tests/                             # Регрессионные проверки
+```
+
+## Ручное переключение шлюза и резервный прокси
+
+| Переменная | Роль |
+| --- | --- |
+| `PRIMARY_PROXY_URL` | Основной прокси для Telegram и OpenRouter |
+| `RESERVE_PROXY_URL` | Резервный прокси |
+| `HTTP_PROXY` | Совместимый fallback, если основной URL не задан |
+
+Кнопка администратора **🔄 Переключить шлюз** проверяет Telegram и OpenRouter через следующий шлюз. Лишь после успешной проверки бот переключает оба клиента и сохраняет активный выбор в папке заметок. Адреса и учётные данные прокси указываются только в Portainer или локальном игнорируемом `.env`.
 
 ## Два варианта Docker Compose
 
-### `docker-compose.yml` — запуск из серверной папки
+### `docker-compose.yml` — серверная папка
 
-Этот вариант сохраняет исходную схему: `${APP_PATH}` монтируется в `/app`, а контейнер запускает код из папки проекта на сервере. Используйте его для существующего локального Stack или ручной разработки на сервере.
+Контейнер получает код через bind mount `${APP_PATH}:/app`. Это вариант для существующего серверного Stack и ручной отладки: изменение файлов в `APP_PATH` требует restart/redeploy, а GitHub push сам код на сервер не заменяет.
 
-После изменения кода в `APP_PATH` нужен restart/redeploy контейнера. Push в GitHub сам по себе этот код не заменяет.
+### `gh_docker-compose.yml` — образ из GitHub
 
-### `gh_docker-compose.yml` — запуск кода из GitHub
+Этот Compose не монтирует `APP_PATH`. После merge в `main` GitHub Actions собирает `Dockerfile` и публикует образ `${BOT_IMAGE}:${IMAGE_TAG}` в GHCR. Portainer запускает этот образ, сохраняя постоянные Obsidian-данные и Docker socket на сервере.
 
-Этот вариант **не монтирует `${APP_PATH}`**. GitHub Actions собирает `Dockerfile`, публикует образ в GHCR, а Portainer запускает `${BOT_IMAGE}:${IMAGE_TAG}`. На сервере остаются только постоянные Obsidian-данные и Docker socket.
+Для GitHub Stack используйте:
 
-Для GitHub-Stack укажите Compose path `gh_docker-compose.yml`, reference `refs/heads/main` и переменные из `.env.example`. Для публичного GHCR-образа authentication не нужна; для приватного настройте registry credentials в Portainer.
+- Repository reference: `refs/heads/main`
+- Compose path: `gh_docker-compose.yml`
+- Переменные окружения: из локального `.env` или Portainer Environment Variables
+- Git authentication: выключена для public-репозитория; для private используйте отдельный read-only fine-grained PAT
 
-## GitOps: merge в main → автоматическое обновление
+## Проверенный процесс обновления
 
-1. Создайте ветку `agent/<задача>`, внесите изменения и откройте draft PR.
-2. Workflow запускает тесты для PR, но не публикует и не разворачивает ветку.
-3. После merge в `main` workflow повторяет проверки, публикует теги `main` и `sha-<commit>` в GHCR.
-4. Workflow вызывает Portainer webhook только если в GitHub Secrets задан `PORTAINER_WEBHOOK_URL`.
-5. Portainer подтягивает новый образ и перезапускает единственный bot-контейнер.
+1. Создайте ветку `agent/<задача>`.
+2. Внесите изменения, запустите тесты и откройте draft PR.
+3. После зелёных checks выполните merge в `main`.
+4. Дождитесь зелёного workflow **CI and GHCR publish** для `main`: он публикует новый GHCR-образ.
+5. В Portainer выберите Git Stack и выполните **Pull and redeploy**.
 
-В Portainer для GitHub Stack включите GitOps updates → **Webhook**, затем **Re-pull image** и **Force redeployment**. Добавьте выданный webhook URL в GitHub Actions Secret `PORTAINER_WEBHOOK_URL`; не коммитьте его в репозиторий.
+Webhook в GitOps можно оставить включённым как интеграционную точку. Без доступных функций **Re-pull image** и **Force redeployment** он не является гарантией обновления mutable-тега образа, поэтому рабочий стандарт проекта — ручной redeploy после зелёного GitHub Actions.
 
-Для первого перехода сначала дождитесь успешной публикации GHCR-образа, затем вручную разверните GitHub Stack. После подтверждения работы включайте webhook. Перед заменой остановите старый Stack: два экземпляра с одним `BOT_TOKEN` конфликтуют при polling, а одинаковый `CONTAINER_NAME` конфликтует в Docker.
-
-Откат: в Portainer временно установите `IMAGE_TAG=sha-<предыдущий-commit>` и сделайте redeploy. SHA-теги остаются привязанными к конкретным проверенным commit.
+Перед первым переходом остановите старый Stack: два экземпляра с одинаковыми токеном или именем контейнера конфликтуют при polling.
 
 ## Конфигурация
 
-Скопируйте `.env.example` в приватный `.env` для локального запуска или перенесите значения в Portainer Environment Variables. Никогда не добавляйте `.env` в Git.
+Скопируйте `.env.example` в приватный `.env` для локального запуска или задайте те же значения в Portainer. Реальный `.env` никогда не добавляйте в Git.
 
 | Переменная | Назначение |
 | --- | --- |
-| `BOT_TOKEN`, `PAID_KEY`, `ADMIN_ID` | Доступ Telegram, OpenRouter и администратора |
-| `APP_PATH` | Только для `docker-compose.yml` с серверным исходным кодом |
-| `BOT_IMAGE`, `IMAGE_TAG` | Только для `gh_docker-compose.yml` и GHCR |
-| `SAVE_PATH`, `ATTACHMENTS_PATH` | Постоянные данные Obsidian |
-| `HTTP_PROXY`, `HTTPS_PROXY` | Необязательный proxy |
+| `BOT_TOKEN`, `PAID_KEY`, `ADMIN_ID` | Telegram, OpenRouter и доступ администратора |
+| `APP_PATH` | Только для серверного `docker-compose.yml` |
+| `BOT_IMAGE`, `IMAGE_TAG` | Только для `gh_docker-compose.yml` |
+| `SAVE_PATH`, `ATTACHMENTS_PATH` | Markdown-заметки и JPEG-вложения Obsidian |
+| `PRIMARY_PROXY_URL`, `RESERVE_PROXY_URL`, `HTTP_PROXY`, `HTTPS_PROXY` | Исходящие прокси |
 | `CONTAINER_NAME`, `DOCKER_SOCKET_PATH` | Контейнер и Docker socket |
 | `APPLICATION_NETWORK`, `PROXY_NETWORK` | Существующие внешние Docker networks |
 
@@ -91,12 +119,14 @@ docker compose --env-file .env.example -f gh_docker-compose.yml config
 <details>
 <summary>Previous README versions</summary>
 
-Публичных предыдущих версий пока нет.
+### До резервного прокси
+
+Бот выполнял OCR, создавал Obsidian Markdown и JPEG-превью, а исходящий трафик использовал один статический `HTTP_PROXY`. Администратор не мог безопасно сменить шлюз из интерфейса.
+
+### Текущая версия
+
+Добавлены основной и резервный прокси, ручное переключение после проверки Telegram и OpenRouter, хранение активного выбора и регрессионные тесты. Логика OCR, структура заметок и запрет на возврат медиа в Telegram сохранены.
 
 </details>
 
 <p align="right">Created by oxotn1k</p>
-
-## Ручное переключение шлюза
-
-Администратор может нажать 🔄 Переключить шлюз. Бот проверяет Telegram и OpenRouter через следующий шлюз, затем переключает оба клиента. Задайте PRIMARY_PROXY_URL и RESERVE_PROXY_URL только в Portainer или локальном игнорируемом .env; адреса и учётные данные не публикуются.
