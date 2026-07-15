@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+.git
+.github
+.worktrees
+__pycache__/
+*.py[cod]
+tests/
+AGENTS.md
+.agents/
+.codex/
+.claude/
