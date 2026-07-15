@@ -27,7 +27,7 @@ class GitHubDeploymentContractTests(unittest.TestCase):
 
         self.assertIn("FROM python:3.11-slim", dockerfile)
         self.assertIn("COPY requirements.txt", dockerfile)
-        self.assertIn("COPY bot.py preview_assets.py", dockerfile)
+        self.assertIn("COPY bot.py preview_assets.py proxy_routing.py", dockerfile)
         self.assertIn('CMD ["python", "-u", "bot.py"]', dockerfile)
 
     def test_github_actions_tests_prs_and_deploys_only_main_images(self):

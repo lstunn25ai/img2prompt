@@ -8,6 +8,6 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY bot.py preview_assets.py ./
+COPY bot.py preview_assets.py proxy_routing.py ./
 
 CMD ["python", "-u", "bot.py"]
