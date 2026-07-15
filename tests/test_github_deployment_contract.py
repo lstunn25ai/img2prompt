@@ -15,6 +15,7 @@ class GitHubDeploymentContractTests(unittest.TestCase):
         gh_compose = GH_COMPOSE_PATH.read_text(encoding="utf-8")
 
         self.assertIn("image: ${BOT_IMAGE}:${IMAGE_TAG}", gh_compose)
+        self.assertIn("pull_policy: always", gh_compose)
         self.assertNotIn("${APP_PATH}:/app", gh_compose)
         self.assertIn("${SAVE_PATH}:${SAVE_PATH}", gh_compose)
         self.assertIn("${ATTACHMENTS_PATH}:${ATTACHMENTS_PATH}", gh_compose)

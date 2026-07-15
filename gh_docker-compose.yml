@@ -1,6 +1,7 @@
 services:
   vision_bot:
     image: ${BOT_IMAGE}:${IMAGE_TAG}
+    pull_policy: always
     container_name: ${CONTAINER_NAME}
     restart: unless-stopped
     working_dir: /app
