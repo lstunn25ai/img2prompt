@@ -65,4 +65,4 @@ jobs:
             echo "PORTAINER_WEBHOOK_URL is not configured; skipping redeploy."
             exit 0
           fi
-          curl --fail --silent --show-error --request POST "$PORTAINER_WEBHOOK_URL"
+          curl --fail --silent --show-error --connect-timeout 10 --max-time 30 --request POST "$PORTAINER_WEBHOOK_URL"

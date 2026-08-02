@@ -39,6 +39,8 @@ class GitHubDeploymentContractTests(unittest.TestCase):
         self.assertIn("ghcr.io/${{ github.repository }}", workflow)
         self.assertIn("sha-${{ github.sha }}", workflow)
         self.assertIn("PORTAINER_WEBHOOK_URL", workflow)
+        self.assertIn("--connect-timeout 10", workflow)
+        self.assertIn("--max-time 30", workflow)
 
     def test_readme_distinguishes_server_and_github_compose_paths(self):
         readme = README_PATH.read_text(encoding="utf-8-sig")
