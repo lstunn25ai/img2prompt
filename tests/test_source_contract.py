@@ -32,6 +32,13 @@ class SourceContractTests(unittest.TestCase):
 
         self.assertEqual(set(), forbidden & used_attributes)
 
+    def test_result_delivery_uses_text_messages_within_telegram_limit(self):
+        source = BOT_PATH.read_text(encoding="utf-8-sig")
+
+        self.assertIn("telegram_text_limit = 4096", source)
+        self.assertIn("await bot.send_message(message.chat.id", source)
+        self.assertNotIn("await message.answer(text_to_send)", source)
+
     def test_bot_integrates_preview_creation_and_markdown_rendering(self):
         source = BOT_PATH.read_text(encoding="utf-8-sig")
 

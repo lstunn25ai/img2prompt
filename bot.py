@@ -384,27 +384,25 @@ async def perform_ocr(file_obj, message_id, preferred_model=None) -> tuple[dict,
 # =========================================================================================
 
 async def send_long_message(message: Message, md_content: str, path: str):
-    """Разбивает длинный Markdown текст на части, чтобы не нарушать лимит Telegram (4096)."""
-    MAX_LEN = 3900
-
-    # ФИКС КОПИРОВАНИЯ: Никаких прямых тройных кавычек в f-строках
+    """Sends text-only messages within Telegram's 4096 character limit."""
+    telegram_text_limit = 4096
     ticks = "`" * 3
+    prefix = f"{ticks}markdown\n"
+    suffix = f"\n{ticks}"
+    saved_name = Path(path).name
+    final_footer = f"\n\n\U0001f4be **\u0421\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u043e:** `{saved_name}`"
+    normal_chunk_limit = telegram_text_limit - len(prefix) - len(suffix)
+    final_chunk_limit = normal_chunk_limit - len(final_footer)
 
-    if len(md_content) <= MAX_LEN:
-        text_to_send = f"{ticks}markdown\n{md_content}\n{ticks}\n\n💾 **Сохранено в:**\n`{path}`"
-        await message.answer(text_to_send)
-        return
+    if final_chunk_limit <= 0:
+        raise ValueError("Telegram service message exceeds the allowed size")
 
-    chunks = [md_content[i:i+MAX_LEN] for i in range(0, len(md_content), MAX_LEN)]
+    remaining = md_content
+    while len(remaining) > final_chunk_limit:
+        chunk, remaining = remaining[:normal_chunk_limit], remaining[normal_chunk_limit:]
+        await bot.send_message(message.chat.id, f"{prefix}{chunk}{suffix}")
 
-    for i, chunk in enumerate(chunks):
-        if i == len(chunks) - 1:
-            text_to_send = f"{ticks}markdown\n{chunk}\n{ticks}\n\n💾 **Сохранено в:**\n`{path}`"
-            await message.answer(text_to_send)
-        else:
-            text_to_send = f"{ticks}markdown\n{chunk}\n{ticks}"
-            await message.answer(text_to_send)
-
+    await bot.send_message(message.chat.id, f"{prefix}{remaining}{suffix}{final_footer}")
 # =========================================================================================
 # 8. УМНЫЙ КОНВЕЙЕР (СБОР БЕЗЛИМИТНЫХ АЛЬБОМОВ И ОТЧЕТ ОБ ОШИБКАХ)
 # =========================================================================================
