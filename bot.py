@@ -5,6 +5,7 @@ import logging
 import base64
 import sys
 import httpx
+import aiohttp
 import re
 import time
 import urllib.parse
@@ -544,6 +545,22 @@ async def cmd_start(message: Message):
     if message.from_user.id == ADMIN_ID:
         await message.answer("👋 oxotn1k готов к работе. Жду твои промпты и альбомы (любого размера).", reply_markup=get_kb())
 
+async def restart_docker_container(container_name: str) -> None:
+    socket_path = "/var/run/docker.sock"
+    if os.path.exists(socket_path):
+        try:
+            connector = aiohttp.UnixConnector(path=socket_path)
+            async with aiohttp.ClientSession(connector=connector) as http_sess:
+                async with http_sess.post(f"http://localhost/v1.41/containers/{container_name}/restart") as resp:
+                    if resp.status in (200, 204):
+                        logging.info("Контейнер %s успешно перезапущен через Docker Socket.", container_name)
+                        return
+                    logging.warning("Docker API вернул статус %s при рестарте: %s", resp.status, await resp.text())
+        except Exception as err:
+            logging.warning("Не удалось перезапустить через docker.sock: %s", err)
+    os.system(f"docker restart {container_name} &")
+
+
 @dp.message(F.text == "🚀 Рестарт контейнера")
 async def restart_handler(message: Message):
     global LAST_RESTART_TIME
@@ -552,7 +569,7 @@ async def restart_handler(message: Message):
 
     LAST_RESTART_TIME = time.time()
     await message.answer("⏳ Перезагрузка Docker-контейнера...")
-    os.system(f"docker restart {CONTAINER_NAME} &")
+    await restart_docker_container(CONTAINER_NAME)
 
 @dp.message(F.text == "🔄 Переключить шлюз")
 async def manual_proxy_switch(message: Message):
@@ -574,8 +591,31 @@ async def manual_proxy_switch(message: Message):
         await status.edit_text('❌ Переключение отменено: следующий шлюз недоступен.')
 
 
+async def ensure_active_proxy_or_failover():
+    if len(PROXY_ENDPOINTS) < 2:
+        return
+
+    current_endpoint = PROXY_ENDPOINTS[CURRENT_PROXY_INDEX]
+    try:
+        await validate_proxy(current_endpoint.url)
+        logging.info("Текущий шлюз %s (%s) валиден.", current_endpoint.label, current_endpoint.url)
+    except Exception as current_err:
+        logging.warning("Текущий шлюз %s недоступен: %s. Поиск рабочего резерва...", current_endpoint.label, current_err)
+        for idx, endpoint in enumerate(PROXY_ENDPOINTS):
+            if idx == CURRENT_PROXY_INDEX:
+                continue
+            try:
+                await validate_proxy(endpoint.url)
+                label = await activate_proxy(idx)
+                logging.info("Автоматически активирован рабочий %s шлюз: %s", label.lower(), endpoint.url)
+                break
+            except Exception as candidate_err:
+                logging.warning("Шлюз %s (%s) также недоступен: %s", endpoint.label, endpoint.url, candidate_err)
+
+
 async def main():
     logging.info("Инициализация системы (Старт диагностики)...")
+    await ensure_active_proxy_or_failover()
     diag_report = await check_diagnostics()
 
     try:
