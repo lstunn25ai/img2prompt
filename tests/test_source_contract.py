@@ -76,6 +76,12 @@ class SourceContractTests(unittest.TestCase):
         self.assertIn("aiogram", requirements)
         self.assertIn("openai", requirements)
 
+    def test_bot_preserves_model_fallback_and_saves_textless_images(self):
+        source = BOT_PATH.read_text(encoding="utf-8-sig")
+        self.assertIn("[preferred_model] + [m for m in MODELS_PRIORITY if m != preferred_model]", source)
+        self.assertIn("[Изображение без текста]", source)
+        self.assertIn("return None, image_bytes", source)
+
 
 if __name__ == "__main__":
     unittest.main()
