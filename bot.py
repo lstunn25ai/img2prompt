@@ -308,7 +308,16 @@ async def perform_ocr(file_obj, message_id, preferred_model=None) -> tuple[dict,
     temp_path = f"temp_{message_id}.png"
     last_error = None
     try:
-        await bot.download(file_obj, destination=temp_path)
+        for dl_attempt in range(3):
+            try:
+                await bot.download(file_obj, destination=temp_path)
+                break
+            except Exception as dl_err:
+                logging.warning(f"Сбой скачивания фото {message_id} (попытка {dl_attempt+1}/3): {dl_err}")
+                if dl_attempt == 2:
+                    raise
+                await asyncio.sleep(1.5)
+
         with open(temp_path, "rb") as f:
             image_bytes = f.read()
 
@@ -433,17 +442,25 @@ async def process_batch_after_delay(user_id: int, delay: float):
     first_msg = messages[0]
 
     try:
-        status_msg = await first_msg.answer(f"⚛ Собрано {total} фото. Начинаю обработку...")
+        status_msg = None
+        for sm_attempt in range(2):
+            try:
+                status_msg = await first_msg.answer(f"⚛ Собрано {total} фото. Начинаю обработку...")
+                break
+            except Exception as sm_err:
+                logging.warning(f"Не удалось отправить статус старта (попытка {sm_attempt+1}/2): {sm_err}")
+                await asyncio.sleep(1.0)
 
         results = []
         preview_warnings = []
         pinned_model = None
 
         for i, msg in enumerate(messages, 1):
-            try:
-                await status_msg.edit_text(f"⚛ **Статус:**\n🔍 Обработка {i} из {total}...")
-            except:
-                pass
+            if status_msg:
+                try:
+                    await status_msg.edit_text(f"⚛ **Статус:**\n🔍 Обработка {i} из {total}...")
+                except Exception:
+                    pass
 
             file_obj = msg.photo[-1] if msg.photo else msg.document
 
@@ -497,11 +514,17 @@ async def process_batch_after_delay(user_id: int, delay: float):
                         results.append(no_text_res)
                         logging.info(f"Изображение {i} сохранено в заметку как иллюстрация без текста.")
                 else:
-                    await first_msg.answer(f"⚠️ Изображение {i} не удалось загрузить.")
+                    try:
+                        await first_msg.answer(f"⚠️ Изображение {i} не удалось загрузить.")
+                    except Exception as notify_err:
+                        logging.warning(f"Не удалось отправить уведомление о сбое загрузки картинки {i}: {notify_err}")
             except Exception as item_err:
                 logging.error(f"Ошибка картинки {i}: {item_err}")
-                error_text = f"⚠️ Изображение {i} пропущено из-за ошибки сервера:\n`{item_err}`"
-                await first_msg.answer(error_text)
+                error_text = f"⚠️ Изображение {i} пропущено из-за ошибки:\n`{item_err}`"
+                try:
+                    await first_msg.answer(error_text)
+                except Exception as notify_err:
+                    logging.warning(f"Не удалось отправить уведомление об ошибке картинки {i}: {notify_err}")
 
             await asyncio.sleep(2.0)
 
@@ -520,17 +543,40 @@ async def process_batch_after_delay(user_id: int, delay: float):
 
             if preview_warnings:
                 indexes = ", ".join(str(index) for index in preview_warnings)
-                await first_msg.answer(
-                    f"⚠️ Не удалось сохранить превью для изображений: {indexes}. "
-                    "Текст заметки сохранен без битых ссылок."
-                )
+                try:
+                    await first_msg.answer(
+                        f"⚠️ Не удалось сохранить превью для изображений: {indexes}. "
+                        "Текст заметки сохранен без битых ссылок."
+                    )
+                except Exception as pw_err:
+                    logging.warning(f"Не удалось отправить предупреждение о превью: {pw_err}")
 
-            try: await status_msg.delete()
-            except: pass
+            if status_msg:
+                try:
+                    await status_msg.delete()
+                except Exception:
+                    pass
 
-            await send_long_message(first_msg, md_content, path)
+            for send_attempt in range(3):
+                try:
+                    await send_long_message(first_msg, md_content, path)
+                    break
+                except Exception as send_err:
+                    logging.warning(f"Сбой отправки итоговой заметки (попытка {send_attempt+1}/3): {send_err}")
+                    if send_attempt == 2:
+                        raise
+                    await asyncio.sleep(2.0)
         else:
-            await status_msg.edit_text("❌ Ошибка: Не удалось обработать ни одно изображение.")
+            if status_msg:
+                try:
+                    await status_msg.edit_text("❌ Ошибка: Не удалось обработать ни одно изображение.")
+                except Exception:
+                    pass
+            else:
+                try:
+                    await first_msg.answer("❌ Ошибка: Не удалось обработать ни одно изображение.")
+                except Exception:
+                    pass
 
     except Exception as global_err:
         logging.error(f"Критическая ошибка батча: {global_err}")
