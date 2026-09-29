@@ -118,4 +118,22 @@ Invoke-RestMethod -Uri "https://portainer.bro525.ru/api/stacks/webhooks/d82f564a
 4. В `render_combined_note` заголовок, эмодзи и теги заметки берутся из первого изображения с реальным OCR-текстом (если оно есть в батче), сохраняя чистую структуру Obsidian.
 5. Контракт зафиксирован в `tests/test_source_contract.py`.
 
+---
+
+## 5. Сводка сессии 4: Ликвидация сбоя ClientOSError (устойчивость aiogram к proxy TCP Reset)
+
+### 5.1. Причина сбоя `ClientOSError`
+- При простое между альбомами (> 20 минут) HTTP-прокси (`mihomo`) или NAT-шлюз сбрасывает неактивные TCP-соединения (`Connection reset by peer`).
+- В `aiogram` обращение к API Telegram (`bot.download()`, `first_msg.answer()`) через `AiohttpSession` наталкивалось на разорванный транспорт сокета, выбрасывая `aiohttp.ClientOSError: [Errno 104] Connection reset by peer`, которое оборачивалось в `TelegramNetworkError: HTTP Client says - ClientOSError:`.
+- Начальная отправка статуса батча не имела повторных попыток, из-за чего единичный сетевой сброс приводил к `Критическая ошибка батча` и отмене всей стопки.
+
+### 5.2. Решение
+1. `perform_ocr`: скачивание файла `bot.download` снабжено 3-кратным повтором с экспоненциальной задержкой.
+2. `process_batch_after_delay`:
+   - Отправка `status_msg` защищена retry-циклом и не блокирует обработку при сбое.
+   - Промежуточные уведомления об ошибках отдельных картинок обёрнуты в безопасные try/except, предотвращая срыв батча.
+   - Отправка итоговой заметки `send_long_message` снабжена 3-кратным retry-циклом.
+3. Сохранение заметки на диск NAS (`save_markdown_file`) по-прежнему происходит **до** отправки текста в Telegram, гарантируя сохранность данных в Obsidian даже при сетевых сбоях мессенджера.
+
+
 
