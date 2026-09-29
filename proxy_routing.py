@@ -16,6 +16,8 @@ def normalize_proxy_url(value: str | None) -> str:
         return ""
     if "mimoho" in raw_value:
         raw_value = raw_value.replace("mimoho", "mihomo")
+    if "bot_vpn_core:20171" in raw_value:
+        raw_value = raw_value.replace("bot_vpn_core:20171", "bot_vpn_core:20170")
     return raw_value if "://" in raw_value else f"http://{raw_value}"
 
 
