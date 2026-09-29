@@ -107,9 +107,9 @@ def render_combined_note(results: list) -> str:
     if not results:
         return ""
 
-    main_res = results[0]
+    main_res = next((r for r in results if r.get('_has_ocr', True) and r.get('clean_prompt') != "[Изображение без текста]"), results[0])
     emoji = main_res.get('emoji')
-    emoji = emoji if emoji else "📝"
+    emoji = emoji if emoji else ("🖼️" if not main_res.get('_has_ocr', True) else "📝")
 
     title = main_res.get('title')
     title = title if title else "Untitled"
@@ -316,7 +316,10 @@ async def perform_ocr(file_obj, message_id, preferred_model=None) -> tuple[dict,
         mime_type = get_mime_type(image_bytes)
 
         REJECT = ["пришлите", "нужен скриншот", "загрузите изображение", "я не вижу"]
-        models_to_try = [preferred_model] if preferred_model else MODELS_PRIORITY
+        if preferred_model:
+            models_to_try = [preferred_model] + [m for m in MODELS_PRIORITY if m != preferred_model]
+        else:
+            models_to_try = MODELS_PRIORITY
 
         # ФИКС КОПИРОВАНИЯ: Маркер для парсинга JSON без прямых тройных кавычек
         marker = "`" * 3
@@ -358,7 +361,7 @@ async def perform_ocr(file_obj, message_id, preferred_model=None) -> tuple[dict,
                     prompt_text = (data.get('clean_prompt') or "").lower()
 
                     if any(word in prompt_text for word in REJECT) or len(prompt_text) < 15:
-                        logging.warning(f"Модель {model} выдала отказ.")
+                        logging.warning(f"Модель {model} выдала отказ или текст отсутствует.")
                         break
 
                     return data, image_bytes
@@ -371,10 +374,11 @@ async def perform_ocr(file_obj, message_id, preferred_model=None) -> tuple[dict,
                         continue
                     break
 
-        # Если ни одна модель не сработала, вызываем ошибку, чтобы конвейер знал об этом
+        # Если модели не смогли извлечь текст (картинка без текста/отказ),
+        # возвращаем None для данных OCR, но сохраняем image_bytes для вложения в Obsidian
         if last_error:
-            raise Exception(last_error)
-        return None
+            logging.warning(f"Все модели завершились с ошибкой: {last_error}")
+        return None, image_bytes
 
     finally:
         if os.path.exists(temp_path):
@@ -453,42 +457,63 @@ async def process_batch_after_delay(user_id: int, delay: float):
                     else:
                         display_name = f"Pasted image {datetime.now().strftime('%Y%m%d%H%M%S')}.jpg"
 
-                    try:
-                        preview_asset = await asyncio.to_thread(
-                            create_preview_asset,
-                            image_bytes,
-                            display_name,
-                        )
-                        preview_path, preview_created = await asyncio.to_thread(
-                            save_preview_asset,
-                            preview_asset,
-                            ATTACHMENTS_PATH,
-                        )
-                        res['_attachment_markdown'] = render_attachment_markdown(preview_asset)
-                        action = "создано" if preview_created else "переиспользовано"
-                        logging.info(f"Превью {action}: {preview_path}")
-                    except Exception as preview_err:
-                        logging.error(f"Не удалось сохранить превью изображения {i}: {preview_err}")
-                        preview_warnings.append(i)
+                    preview_md = None
+                    if image_bytes:
+                        try:
+                            preview_asset = await asyncio.to_thread(
+                                create_preview_asset,
+                                image_bytes,
+                                display_name,
+                            )
+                            preview_path, preview_created = await asyncio.to_thread(
+                                save_preview_asset,
+                                preview_asset,
+                                ATTACHMENTS_PATH,
+                            )
+                            preview_md = render_attachment_markdown(preview_asset)
+                            action = "создано" if preview_created else "переиспользовано"
+                            logging.info(f"Превью {action}: {preview_path}")
+                        except Exception as preview_err:
+                            logging.error(f"Не удалось сохранить превью изображения {i}: {preview_err}")
+                            preview_warnings.append(i)
 
-                    results.append(res)
-                    if not pinned_model and '_used_model' in res:
-                        pinned_model = res['_used_model']
+                    if res:
+                        res['_attachment_markdown'] = preview_md
+                        results.append(res)
+                        if not pinned_model and '_used_model' in res:
+                            pinned_model = res['_used_model']
+                    else:
+                        # Текст на изображении не найден, но изображение сохранено как вложение в Obsidian!
+                        no_text_res = {
+                            'title': f"Image {i}",
+                            'emoji': "🖼️",
+                            'category': "Artwork",
+                            'wiki_links': [],
+                            'tags': [],
+                            'clean_prompt': "[Изображение без текста]",
+                            '_attachment_markdown': preview_md,
+                            '_has_ocr': False
+                        }
+                        results.append(no_text_res)
+                        logging.info(f"Изображение {i} сохранено в заметку как иллюстрация без текста.")
                 else:
-                    await first_msg.answer(f"⚠️ Изображение {i} пропущено: ИИ не нашел текст.")
+                    await first_msg.answer(f"⚠️ Изображение {i} не удалось загрузить.")
             except Exception as item_err:
                 logging.error(f"Ошибка картинки {i}: {item_err}")
                 error_text = f"⚠️ Изображение {i} пропущено из-за ошибки сервера:\n`{item_err}`"
                 await first_msg.answer(error_text)
 
-            await asyncio.sleep(3.0)
+            await asyncio.sleep(2.0)
 
         if results:
             md_content = render_combined_note(results)
 
-            first_emoji = results[0].get('emoji') or ("📚" if total > 1 else "📝")
-            first_title = results[0].get('title')
-            first_title = urllib.parse.unquote(str(first_title)) if first_title and str(first_title).lower() != "none" else ("Batch" if total > 1 else "Untitled")
+            # Находим элемент с реальным текстом для иконки и названия заметки
+            main_ocr = next((r for r in results if r.get('_has_ocr', True) and r.get('clean_prompt') != "[Изображение без текста]"), results[0])
+
+            first_emoji = main_ocr.get('emoji') or ("📚" if total > 1 else ("🖼️" if not main_ocr.get('_has_ocr', True) else "📝"))
+            first_title = main_ocr.get('title')
+            first_title = urllib.parse.unquote(str(first_title)) if first_title and str(first_title).lower() not in ("none", "untitled") else ("Batch" if total > 1 else "Untitled")
 
             header_icons = f"AI ⚛️ {first_emoji} {first_title}"
             path = await save_markdown_file(header_icons, md_content)
@@ -505,7 +530,7 @@ async def process_batch_after_delay(user_id: int, delay: float):
 
             await send_long_message(first_msg, md_content, path)
         else:
-            await status_msg.edit_text("❌ Ошибка: Не удалось извлечь текст ни из одного изображения.")
+            await status_msg.edit_text("❌ Ошибка: Не удалось обработать ни одно изображение.")
 
     except Exception as global_err:
         logging.error(f"Критическая ошибка батча: {global_err}")
