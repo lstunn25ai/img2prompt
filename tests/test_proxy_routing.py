@@ -38,6 +38,13 @@ class ProxyRoutingTests(unittest.TestCase):
         )
         self.assertEqual("http://mihomo:7890", endpoints[1].url)
 
+    def test_normalizes_bot_vpn_core_port_to_20170(self):
+        endpoints = build_proxy_endpoints(
+            primary_url="http://bot_vpn_core:20171",
+            reserve_url="http://mihomo:7890",
+        )
+        self.assertEqual("http://bot_vpn_core:20170", endpoints[0].url)
+
     def test_next_proxy_index_cycles_between_two_endpoints(self):
         self.assertEqual(1, next_proxy_index(0, endpoint_count=2))
         self.assertEqual(0, next_proxy_index(1, endpoint_count=2))
