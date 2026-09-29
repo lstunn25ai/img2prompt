@@ -70,6 +70,12 @@ class SourceContractTests(unittest.TestCase):
         self.assertIn(".claude/", gitignore)
         self.assertIn("ruflo/", gitignore)
 
+    def test_requirements_contains_all_runtime_dependencies(self):
+        requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8")
+        self.assertIn("httpx", requirements)
+        self.assertIn("aiogram", requirements)
+        self.assertIn("openai", requirements)
+
 
 if __name__ == "__main__":
     unittest.main()

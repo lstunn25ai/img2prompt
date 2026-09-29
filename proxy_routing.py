@@ -14,6 +14,8 @@ def normalize_proxy_url(value: str | None) -> str:
     raw_value = str(value or "").strip()
     if not raw_value:
         return ""
+    if "mimoho" in raw_value:
+        raw_value = raw_value.replace("mimoho", "mihomo")
     return raw_value if "://" in raw_value else f"http://{raw_value}"
 
 
