@@ -90,8 +90,13 @@ def create_openai_client(proxy_url):
         },
     )
 
-session = AiohttpSession(proxy=PROXY_URL) if PROXY_URL else None
-bot = Bot(token=BOT_TOKEN, session=session) if session else Bot(token=BOT_TOKEN)
+session = AiohttpSession(
+    proxy=PROXY_URL,
+    timeout=aiohttp.ClientTimeout(total=45.0, connect=10.0, sock_read=30.0)
+) if PROXY_URL else AiohttpSession(
+    timeout=aiohttp.ClientTimeout(total=45.0, connect=10.0, sock_read=30.0)
+)
+bot = Bot(token=BOT_TOKEN, session=session)
 dp = Dispatcher()
 custom_http_client, client = create_openai_client(PROXY_URL)
 
@@ -695,7 +700,7 @@ async def main():
     except Exception as e:
         logging.error(f"Не удалось отправить приветствие: {e}")
 
-    await dp.start_polling(bot)
+    await dp.start_polling(bot, polling_timeout=20)
 
 if __name__ == "__main__":
     try:
