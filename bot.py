@@ -92,9 +92,9 @@ def create_openai_client(proxy_url):
 
 session = AiohttpSession(
     proxy=PROXY_URL,
-    timeout=aiohttp.ClientTimeout(total=45.0, connect=10.0, sock_read=30.0)
+    timeout=45.0
 ) if PROXY_URL else AiohttpSession(
-    timeout=aiohttp.ClientTimeout(total=45.0, connect=10.0, sock_read=30.0)
+    timeout=45.0
 )
 bot = Bot(token=BOT_TOKEN, session=session)
 dp = Dispatcher()
